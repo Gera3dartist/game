@@ -1,8 +1,5 @@
-import asyncio
 import sqlalchemy as sa
-import time
 
-from aiopg.sa import create_engine
 
 DB_CREDENTIALS = {
     'user': 'postgres',
@@ -24,6 +21,5 @@ GameMap = sa.Table('game_map', sa.MetaData(),
                    sa.UniqueConstraint('x', 'y', 'game_object_id',
                                        name='all_fields_unique')
                    )
-
 
 

@@ -2,35 +2,72 @@ __author__ = 'agerasym'
 
 import asyncio
 import json
-
 from aiohttp import web
-from lib.async_pg_access import query_table
+from lib.async_pg_access import QueryManager
 
 
-# async def get_state(request):
-@asyncio.coroutine
-def get_state(request):
-    res = yield from query_table()
-    response = json.dumps([dict(row) for row in res])
-    return web.Response(body=bytes(response, encoding='utf8'),
-                        content_type='json')
+class BaseApp(web.Application):
+    SUCCESS = 200
+    FAIL = 100
+
+    def send_response(self, response):
+        body = {
+            "body": bytes(json.dumps(response), encoding='utf8'),
+            "content_type": "json"
+        }
+        return web.Response(**body)
 
 
-@asyncio.coroutine
-def get_name_from_url(request):
-    # need to figure out how to get POST data from requst
-    # and write handler for it
-    return web.Response(text="some post response goes in here")
+class App(BaseApp):
+    manager = QueryManager()
 
+    def __init__(self, *args, **kwargs):
+        super(App, self).__init__(*args, **kwargs)
+        self.router.add_route('GET', '/', self.get_state)
+        self.router.add_route('POST', '/state', self.update_state)
 
-def configure_routers(app):
-    app.router.add_route('GET', '/', get_state)
-    app.router.add_route('POST', '/state', get_name_from_url)
+    @asyncio.coroutine
+    def get_state(self, request):
+        res = yield from self.manager.get_state()
+        result = [dict(row) for row in res]
+        return self.send_response(result)
+
+    @asyncio.coroutine
+    def update_state(self, request):
+        result = {}
+        data = yield from request.json()
+        for action in data:
+            method = getattr(self, action.get("type"), None)
+            if not method:
+                pass
+            result.update(method(action.get("type"), action.get("params")))
+        return self.send_response(result)
+
+    def add_item(self, action_type, params: dict):
+        game_obj = self.manager.get_game_object(params.get(id))
+        if game_obj:
+            return {action_type: self.FAIL}
+        self.manager.add_item(**params)
+        return {action_type: self.SUCCESS}
+
+    def move_item(self, action_type, params):
+        game_obj = self.manager.get_game_object(params.get(id))
+        can_move = self.manager.check_can_move(game_obj)
+        if all([game_obj, can_move]):
+            # make db record
+            return {action_type: self.SUCCESS}
+        return {action_type: self.FAIL}
+
+    def remove_item(self, action_type, params):
+        game_obj = self.manager.get_game_object(params.get(id))
+        if not game_obj:
+            return {action_type: self.FAIL}
+        # make db record
+        return {action_type: self.SUCCESS}
 
 
 def main():
-    app = web.Application()
-    configure_routers(app)
+    app = App()
     loop = asyncio.get_event_loop()
     handler = app.make_handler()
     f = loop.create_server(handler, '0.0.0.0', 8080)
