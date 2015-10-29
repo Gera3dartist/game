@@ -30,23 +30,3 @@ class QueryManager(object):
 
     def check_can_move(self, game_obj):
         pass
-
-
-
-# @asyncio.coroutine
-# def fill_table():
-#     engine = yield from create_engine(**DB_CREDENTIALS)
-#     with (yield from engine) as conn:
-#         res = yield from conn.execute(GameObject.select())
-#         filled_fields = []
-#         for i, row in enumerate(res):
-#             yield from conn.execute(GameMap.insert(
-#             ).values(
-#                 x=i,
-#                 y=i,
-#                 game_object_id=row.id,
-#             ))
-
-##
-# loop = asyncio.get_event_loop()
-# loop.run_until_complete(fill_table())
