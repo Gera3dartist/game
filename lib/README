@@ -2,9 +2,25 @@
 Deployment guide
 ##############
 
+---------
+Server
+---------
 1. Install/configure PostgreSQL server
 2. Create schema:
     cd game
     createdb game_db && dropdb game_db && psql -f deploy/migrations/001-add-unique-constraint-game-map.sql -d game_db
-3. Fill tables from dump:
+3. Fill tables from dump
+4. Install and activate virtualenv with python3
+5. Install dependencies:
+    pip install -r /deploy/dependencies.txt
+6. Start server:
+    python server.py
+
+---------
+Client (under development)
+---------
+
+1. Use curl: curl http://127.0.0.1:8080/
+
+
 

@@ -23,8 +23,8 @@ class App(BaseApp):
 
     def __init__(self, *args, **kwargs):
         super(App, self).__init__(*args, **kwargs)
-        self.router.add_route('GET', '/', self.get_state)
-        self.router.add_route('POST', '/state', self.update_state)
+        self.router.add_route('GET', '/get_state', self.get_state)
+        self.router.add_route('POST', '/update_state', self.update_state)
 
     @asyncio.coroutine
     def get_state(self, request):
@@ -36,10 +36,11 @@ class App(BaseApp):
     def update_state(self, request):
         result = {}
         data = yield from request.json()
-        for action in data:
+        # return self.send_response(data)
+        for action in data.pop("actions"):
             method = getattr(self, action.get("type"), None)
-            if not method:
-                pass
+            if method:
+                continue
             result.update(method(action.get("type"), action.get("params")))
         return self.send_response(result)
 
