@@ -5,7 +5,7 @@ import logging.handlers
 import asyncio
 import json
 from aiohttp import web
-from lib.async_pg_access import QueryManager
+from lib.query_manager import QueryManager
 
 logger = logging.getLogger('ServerLogger')
 logger.setLevel(logging.DEBUG)
