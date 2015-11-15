@@ -1,9 +1,25 @@
 __author__ = 'agerasym'
 
+import logging
+import logging.handlers
 import asyncio
 import json
 from aiohttp import web
 from lib.async_pg_access import QueryManager
+
+logger = logging.getLogger('ServerLogger')
+logger.setLevel(logging.DEBUG)
+file_handler = logging.handlers.RotatingFileHandler(
+    'log/server.log', maxBytes=4096, backupCount=5)
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.WARNING)
+formatter = \
+    logging.Formatter('%(asctime)s - %(name)s - %(levelname)s:  %(message)s')
+
+file_handler.setFormatter(formatter)
+console_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
 
 
 class BaseApp(web.Application):
@@ -36,35 +52,41 @@ class App(BaseApp):
     def update_state(self, request):
         result = {}
         data = yield from request.json()
-        # return self.send_response(data)
         for action in data.pop("actions"):
             method = getattr(self, action.get("type"), None)
             if method:
-                continue
-            result.update(method(action.get("type"), action.get("params")))
+                r = yield from method(action.get("type"), action.get("params"))
+                result.update(r)
         return self.send_response(result)
 
     def add_item(self, action_type, params: dict):
-        game_obj = self.manager.get_game_object(params.get(id))
-        if game_obj:
-            return {action_type: self.FAIL}
-        self.manager.add_item(**params)
-        return {action_type: self.SUCCESS}
+        logger.info('got params: {}'.format(params))
+        exists, is_occupied_place = \
+            yield from self.manager.check_exists_is_occupied(params)
+        logger.info('exists: {}, is_occupied {}'.format(
+            bool(exists), bool(is_occupied_place)))
+        if not exists and not is_occupied_place:
+            logger.info('adding object: {}'.format(params))
+            yield from self.manager.add_item(**params)
+            return {action_type: self.SUCCESS}
+        return {action_type: self.FAIL}
 
     def move_item(self, action_type, params):
-        game_obj = self.manager.get_game_object(params.get(id))
-        can_move = self.manager.check_can_move(game_obj)
-        if all([game_obj, can_move]):
-            # make db record
+        exists, is_occupied_place = \
+            yield from self.manager.check_exists_is_occupied(params)
+        if exists and not is_occupied_place:
+            logger.info('moving object: {}'.format(params))
+            yield from self.manager.update_item(**params)
             return {action_type: self.SUCCESS}
         return {action_type: self.FAIL}
 
     def remove_item(self, action_type, params):
-        game_obj = self.manager.get_game_object(params.get(id))
-        if not game_obj:
-            return {action_type: self.FAIL}
-        # make db record
-        return {action_type: self.SUCCESS}
+        exists, _ = yield from self.manager.check_exists_is_occupied(params)
+        if exists:
+            logger.info('removing object: {}'.format(params))
+            yield from self.manager.delete_item(**params)
+            return {action_type: self.SUCCESS}
+        return {action_type: self.FAIL}
 
 
 def main():
@@ -88,4 +110,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
